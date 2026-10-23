@@ -4,6 +4,11 @@
 
 Drop in raw simulator screenshots, pick a look, and download a ZIP of polished marketing screenshots: device frames, headlines, gradients and stickers, at the exact resolutions each store accepts. No account, no upload, no server. Your screenshots never leave your machine.
 
+**[Try it at appshots.portfolio.ltd →](https://appshots.portfolio.ltd)**
+
+[![CI](https://github.com/portfolio-ltd/appshots/actions/workflows/ci.yml/badge.svg)](https://github.com/portfolio-ltd/appshots/actions/workflows/ci.yml)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
+
 ![Example output: iPhone, iPad and Chromebook screenshots made with AppShots](docs/showcase.png)
 
 ## Features
@@ -20,7 +25,9 @@ Drop in raw simulator screenshots, pick a look, and download a ZIP of polished m
 
 ## Quick start
 
-Requires Node.js 20+.
+The quickest way is to use the hosted version at **[appshots.portfolio.ltd](https://appshots.portfolio.ltd)**. It's the same code as this repo, and everything still runs in your browser.
+
+To run it locally (requires Node.js 20+):
 
 ```bash
 git clone https://github.com/portfolio-ltd/appshots.git
