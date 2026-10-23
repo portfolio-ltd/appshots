@@ -1,0 +1,23 @@
+name: Store requirement changed
+description: Apple or Google changed a screenshot size, count or file limit
+labels: [store-spec]
+body:
+  - type: input
+    id: device
+    attributes:
+      label: Store and device
+      placeholder: App Store — iPhone 6.9"
+    validations:
+      required: true
+  - type: textarea
+    id: change
+    attributes:
+      label: What changed?
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Link to the official documentation
+    validations:
+      required: true
