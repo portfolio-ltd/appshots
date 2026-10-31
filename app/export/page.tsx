@@ -9,7 +9,7 @@ import { DesignCanvas } from "@/components/DesignCanvas";
 import { MissingDraft } from "@/components/MissingDraft";
 import { useHydrated } from "@/hooks/useHydrated";
 import { useShots } from "@/hooks/useShots";
-import { DEVICE_SPECS, outputSize, type AppInfo } from "@/lib/constants";
+import { DEVICE_SPECS, isLandscapeOutput, outputSize, type AppInfo } from "@/lib/constants";
 import { buildZip, downloadBlob, renderFullSize, slugify, type ExportItem } from "@/lib/export";
 import { loadAppInfo, loadDesigns, resolveDesign } from "@/lib/persist";
 
@@ -143,7 +143,7 @@ function Exporter({ appInfo }: { appInfo: AppInfo }) {
                         config={item.config}
                         file={item.file}
                         renderHeight={420}
-                        className={`${(item.config.orientation ?? d.defaultOrientation) === "landscape" && d.allowLandscape ? "h-40" : "h-72"} w-auto rounded-lg border shadow-sm hover:ring-2 hover:ring-primary/50 transition`}
+                        className={`${isLandscapeOutput(d, item.config.orientation) ? "h-40" : "h-72"} w-auto rounded-lg border shadow-sm hover:ring-2 hover:ring-primary/50 transition`}
                       />
                     </Link>
                     <figcaption className="flex items-center justify-between text-[11px] text-muted-foreground">

@@ -332,6 +332,7 @@ function OnboardingForm() {
                           <span className="text-sm font-medium">{dev.label}</span>
                           {dev.minCount > 0 && <Badge variant="outline" className="ml-2 text-[10px]">min {dev.minCount}</Badge>}
                           <p className="text-xs text-muted-foreground mt-0.5 leading-tight">{dev.acceptedDimensions}</p>
+                          {dev.note && <p className="text-[11px] text-muted-foreground/80 mt-1 leading-tight">{dev.note}</p>}
                         </div>
                       </label>
                     );
@@ -368,6 +369,7 @@ function OnboardingForm() {
                         <div>
                           <span className="text-sm font-medium">{dev.label}</span>
                           <p className="text-xs text-muted-foreground mt-0.5 leading-tight">{dev.acceptedDimensions}</p>
+                          {dev.note && <p className="text-[11px] text-muted-foreground/80 mt-1 leading-tight">{dev.note}</p>}
                         </div>
                       </label>
                     );

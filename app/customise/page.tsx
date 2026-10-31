@@ -21,6 +21,8 @@ import {
   TEMPLATE_PRESETS,
   THEME_PRESETS,
   getDevice,
+  isLandscapeOutput,
+  outputSize,
   newOverlayId,
   numberBadgeDataUri,
   type AppInfo,
@@ -376,9 +378,9 @@ function Editor({ appInfo }: { appInfo: AppInfo }) {
                   onChange={(textAlign) => update({ textAlign })}
                 />
                 <Segmented
-                  label={spec.allowLandscape && (config.orientation ?? spec.defaultOrientation) === "landscape" ? "Text side" : "Text position"}
+                  label={isLandscapeOutput(spec, config.orientation) ? "Text side" : "Text position"}
                   value={config.textPosition}
-                  options={(config.orientation ?? spec.defaultOrientation) === "landscape"
+                  options={isLandscapeOutput(spec, config.orientation)
                     ? [{ value: "top", label: "Left" }, { value: "bottom", label: "Right" }]
                     : [{ value: "top", label: "Top" }, { value: "bottom", label: "Bottom" }]}
                   onChange={(textPosition) => update({ textPosition })}
@@ -580,9 +582,8 @@ function Editor({ appInfo }: { appInfo: AppInfo }) {
             <div className="flex items-center justify-between gap-2">
               <p className="text-[11px] text-muted-foreground">
                 Exports at {(() => {
-                  const o = config.orientation ?? spec.defaultOrientation;
-                  const { width, height } = spec.output;
-                  return o === "landscape" && spec.allowLandscape ? `${height}×${width}` : `${width}×${height}`;
+                  const { width, height } = outputSize(spec, config.orientation ?? spec.defaultOrientation);
+                  return `${width}×${height}`;
                 })()}
               </p>
               <Button variant="outline" size="sm" onClick={applyStyleToAll} disabled={totalFiles < 2}>

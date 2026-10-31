@@ -21,6 +21,10 @@ export const ANDROID_CATEGORIES = [
 ] as const;
 
 // ─── Devices & store output specs ──────────────────────────────────────────────
+//
+// Sources, checked 2026-10-31:
+//   Apple  https://developer.apple.com/help/app-store-connect/reference/screenshot-specifications
+//   Google https://support.google.com/googleplay/android-developer/answer/9866151
 
 export type Store = "app-store" | "play-store";
 export type Orientation = "portrait" | "landscape";
@@ -28,6 +32,7 @@ export type Orientation = "portrait" | "landscape";
 /** Which device chrome the renderer draws around the screenshot. */
 export type FrameKind =
   | "iphone"
+  | "foldable"
   | "ipad"
   | "watch"
   | "android-phone"
@@ -45,13 +50,20 @@ export interface DeviceSpec {
   maxCount: number;
   /** Store-enforced per-file limit; exports above it are re-encoded as JPEG. */
   maxFileMB: number | null;
-  /** Exported canvas size in portrait. Landscape swaps width and height. */
+  /**
+   * Exported canvas size. Portrait for devices that rotate (landscape swaps
+   * width and height); the fixed size for devices with `allowLandscape: false`.
+   */
   output: { width: number; height: number };
   frame: FrameKind;
   defaultOrientation: Orientation;
   allowLandscape: boolean;
   /** Human-readable accepted sizes, shown in the UI. */
   acceptedDimensions: string;
+  /** Store rule worth knowing before choosing the device: required, optional, scaled, deadlines. */
+  note?: string;
+  /** The store wants the raw app UI only, so the design defaults to full-bleed with no caption. */
+  uiOnly?: boolean;
 }
 
 export const DEVICE_SPECS: DeviceSpec[] = [
@@ -62,13 +74,15 @@ export const DEVICE_SPECS: DeviceSpec[] = [
     output: { width: 1080, height: 1920 }, frame: "android-phone",
     defaultOrientation: "portrait", allowLandscape: true,
     acceptedDimensions: "16:9 or 9:16, 320–3840 px per side",
+    note: "Required. 4+ at 1080×1920 or more to qualify for Play recommendations",
   },
   {
     id: "play-tablet-7", label: "7\" Tablet", store: "play-store", slug: "tablet-7",
     minCount: 0, maxCount: 8, maxFileMB: 8,
     output: { width: 1080, height: 1920 }, frame: "android-tablet",
     defaultOrientation: "portrait", allowLandscape: true,
-    acceptedDimensions: "16:9 or 9:16, 320–3840 px per side",
+    acceptedDimensions: "16:9 or 9:16, 1080–7680 px per side",
+    note: "Optional. Google suggests 4+ for large-screen listings",
   },
   {
     id: "play-tablet-10", label: "10\" Tablet", store: "play-store", slug: "tablet-10",
@@ -76,6 +90,7 @@ export const DEVICE_SPECS: DeviceSpec[] = [
     output: { width: 1440, height: 2560 }, frame: "android-tablet",
     defaultOrientation: "portrait", allowLandscape: true,
     acceptedDimensions: "16:9 or 9:16, 1080–7680 px per side",
+    note: "Optional. Google suggests 4+ for large-screen listings",
   },
   {
     id: "play-chromebook", label: "Chromebook", store: "play-store", slug: "chromebook",
@@ -83,13 +98,50 @@ export const DEVICE_SPECS: DeviceSpec[] = [
     output: { width: 1080, height: 1920 }, frame: "laptop",
     defaultOrientation: "landscape", allowLandscape: true,
     acceptedDimensions: "16:9 or 9:16, 1080–7680 px per side",
+    note: "Optional. Google suggests 4+ for large-screen listings",
+  },
+  {
+    id: "play-wear", label: "Wear OS", store: "play-store", slug: "wear",
+    minCount: 1, maxCount: 8, maxFileMB: 8,
+    output: { width: 1080, height: 1080 }, frame: "none",
+    defaultOrientation: "portrait", allowLandscape: false,
+    acceptedDimensions: "1:1, at least 384×384",
+    note: "Required for Wear OS apps. App UI only: no device frames, captions or backgrounds",
+    uiOnly: true,
+  },
+  {
+    id: "play-tv", label: "Android TV", store: "play-store", slug: "tv",
+    minCount: 1, maxCount: 8, maxFileMB: 8,
+    output: { width: 1920, height: 1080 }, frame: "none",
+    defaultOrientation: "landscape", allowLandscape: false,
+    acceptedDimensions: "16:9 landscape, 1920×1080",
+    note: "Required for Android TV apps, along with a 1280×720 TV banner in Play Console",
+  },
+  {
+    id: "play-auto-portrait", label: "Android Automotive (portrait)", store: "play-store", slug: "automotive-portrait",
+    minCount: 2, maxCount: 8, maxFileMB: 8,
+    output: { width: 800, height: 1280 }, frame: "none",
+    defaultOrientation: "portrait", allowLandscape: false,
+    acceptedDimensions: "Exactly 800×1280",
+    note: "Required for non-parked car apps. Generic system UI only, no vehicle branding",
+    uiOnly: true,
+  },
+  {
+    id: "play-auto-landscape", label: "Android Automotive (landscape)", store: "play-store", slug: "automotive-landscape",
+    minCount: 2, maxCount: 8, maxFileMB: 8,
+    output: { width: 1024, height: 768 }, frame: "none",
+    defaultOrientation: "landscape", allowLandscape: false,
+    acceptedDimensions: "Exactly 1024×768",
+    note: "Required for non-parked car apps. Generic system UI only, no vehicle branding",
+    uiOnly: true,
   },
   {
     id: "play-xr", label: "Android XR", store: "play-store", slug: "xr",
-    minCount: 4, maxCount: 8, maxFileMB: 15,
-    output: { width: 1080, height: 1920 }, frame: "none",
-    defaultOrientation: "landscape", allowLandscape: true,
-    acceptedDimensions: "16:9 or 9:16, 720–7680 px per side",
+    minCount: 4, maxCount: 8, maxFileMB: 8,
+    output: { width: 3840, height: 2400 }, frame: "none",
+    defaultOrientation: "landscape", allowLandscape: false,
+    acceptedDimensions: "8:5 landscape, 3840×2400 recommended (min 1920×1200)",
+    note: "Required for Android XR apps",
   },
   // ── App Store ───────────────────────────────────────────────────────────────
   {
@@ -98,6 +150,7 @@ export const DEVICE_SPECS: DeviceSpec[] = [
     output: { width: 1320, height: 2868 }, frame: "iphone",
     defaultOrientation: "portrait", allowLandscape: true,
     acceptedDimensions: "1320×2868, 1290×2796, 1260×2736 (or landscape)",
+    note: "Dynamic Island, large. Optional; also covers the 6.5″ requirement",
   },
   {
     id: "ios-iphone-6.5", label: "iPhone 6.5\"", store: "app-store", slug: "iphone-6.5",
@@ -105,6 +158,7 @@ export const DEVICE_SPECS: DeviceSpec[] = [
     output: { width: 1284, height: 2778 }, frame: "iphone",
     defaultOrientation: "portrait", allowLandscape: true,
     acceptedDimensions: "1284×2778, 1242×2688 (or landscape)",
+    note: "Face ID, large. Required unless 6.9″ screenshots are provided",
   },
   {
     id: "ios-iphone-6.3", label: "iPhone 6.3\"", store: "app-store", slug: "iphone-6.3",
@@ -112,6 +166,7 @@ export const DEVICE_SPECS: DeviceSpec[] = [
     output: { width: 1206, height: 2622 }, frame: "iphone",
     defaultOrientation: "portrait", allowLandscape: true,
     acceptedDimensions: "1206×2622, 1179×2556 (or landscape)",
+    note: "Dynamic Island, medium. Required for every iPhone app",
   },
   {
     id: "ios-iphone-6.1", label: "iPhone 6.1\"", store: "app-store", slug: "iphone-6.1",
@@ -119,6 +174,23 @@ export const DEVICE_SPECS: DeviceSpec[] = [
     output: { width: 1170, height: 2532 }, frame: "iphone",
     defaultOrientation: "portrait", allowLandscape: true,
     acceptedDimensions: "1170×2532, 1125×2436, 1080×2340 (or landscape)",
+    note: "Face ID, medium. Optional; scaled from 6.3″ if omitted",
+  },
+  {
+    id: "ios-iphone-duo-inner", label: "iPhone Duo (inner)", store: "app-store", slug: "iphone-duo-inner",
+    minCount: 1, maxCount: 10, maxFileMB: null,
+    output: { width: 2007, height: 2853 }, frame: "foldable",
+    defaultOrientation: "portrait", allowLandscape: true,
+    acceptedDimensions: "2007×2853 (or landscape)",
+    note: "Unfolded display. Required from April 2027 for apps built with the iOS 27.1 SDK; earns the “optimized for iPhone Duo” badge",
+  },
+  {
+    id: "ios-iphone-duo-outer", label: "iPhone Duo (outer)", store: "app-store", slug: "iphone-duo-outer",
+    minCount: 1, maxCount: 10, maxFileMB: null,
+    output: { width: 1398, height: 2034 }, frame: "iphone",
+    defaultOrientation: "portrait", allowLandscape: true,
+    acceptedDimensions: "1398×2034 (or landscape)",
+    note: "Cover display. Required from April 2027 for apps built with the iOS 27.1 SDK",
   },
   {
     id: "ios-ipad-13", label: "iPad 13\"", store: "app-store", slug: "ipad-13",
@@ -126,27 +198,32 @@ export const DEVICE_SPECS: DeviceSpec[] = [
     output: { width: 2064, height: 2752 }, frame: "ipad",
     defaultOrientation: "portrait", allowLandscape: true,
     acceptedDimensions: "2064×2752, 2048×2732 (or landscape)",
+    note: "Required for every iPad app",
   },
   {
     id: "ios-ipad-11", label: "iPad 11\"", store: "app-store", slug: "ipad-11",
     minCount: 1, maxCount: 10, maxFileMB: null,
     output: { width: 1668, height: 2388 }, frame: "ipad",
     defaultOrientation: "portrait", allowLandscape: true,
-    acceptedDimensions: "1668×2420, 1668×2388, 1640×2360 (or landscape)",
+    acceptedDimensions: "1668×2388, 1668×2420, 1640×2360, 1488×2266 (or landscape)",
+    note: "Optional; scaled from 13″ if omitted. Also covers current iPad mini",
   },
   {
-    id: "ios-ipad-mini", label: "iPad Mini", store: "app-store", slug: "ipad-mini",
+    // id kept as `ios-ipad-mini` so saved drafts keep working.
+    id: "ios-ipad-mini", label: "iPad 9.7\"", store: "app-store", slug: "ipad-9.7",
     minCount: 1, maxCount: 10, maxFileMB: null,
     output: { width: 1536, height: 2048 }, frame: "ipad",
     defaultOrientation: "portrait", allowLandscape: true,
     acceptedDimensions: "1536×2048, 1536×2008, 768×1024 (or landscape)",
+    note: "Optional; older iPads and iPad mini 4–5. Scaled from 10.5″ if omitted",
   },
   {
     id: "ios-watch", label: "Apple Watch", store: "app-store", slug: "watch",
     minCount: 1, maxCount: 10, maxFileMB: null,
     output: { width: 422, height: 514 }, frame: "watch",
     defaultOrientation: "portrait", allowLandscape: false,
-    acceptedDimensions: "422×514, 416×496, 396×484, 368×448",
+    acceptedDimensions: "422×514, 410×502, 416×496, 396×484, 368×448, 312×390",
+    note: "Required for watchOS apps. Use the same size in every localization",
   },
 ];
 
@@ -162,6 +239,12 @@ export function outputSize(spec: DeviceSpec, orientation: Orientation) {
   return orientation === "landscape" && spec.allowLandscape
     ? { width: height, height: width }
     : { width, height };
+}
+
+/** Whether the exported canvas is wider than tall. Fixed-size devices ignore `orientation`. */
+export function isLandscapeOutput(spec: DeviceSpec, orientation: Orientation | null) {
+  const { width, height } = outputSize(spec, orientation ?? spec.defaultOrientation);
+  return width > height;
 }
 
 // ─── App info (step 1) ─────────────────────────────────────────────────────────
@@ -247,7 +330,7 @@ export const DEFAULT_DESIGN: DesignConfig = {
 
 /** Per-device defaults applied before the user's own edits. */
 export function deviceDefaults(spec: DeviceSpec): Partial<DesignConfig> {
-  if (spec.frame === "watch") return { deviceStyle: "fullbleed", headline: "", subheading: "" };
+  if (spec.frame === "watch" || spec.uiOnly) return { deviceStyle: "fullbleed", headline: "", subheading: "" };
   if (spec.frame === "none") return { deviceStyle: "flat" };
   return {};
 }

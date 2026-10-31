@@ -13,9 +13,9 @@ Drop in raw simulator screenshots, pick a look, and download a ZIP of polished m
 
 ## Features
 
-- **Exact store sizes.** Every export matches an accepted resolution: iPhone 6.9″/6.5″/6.3″/6.1″, iPad 13″/11″/mini, Apple Watch, and Play phone, 7″/10″ tablet, Chromebook and Android XR. Store count limits are checked before export, and files over Google Play's size limits are re-encoded as JPEG automatically.
+- **Exact store sizes.** Every export matches an accepted resolution: iPhone 6.9″/6.5″/6.3″/6.1″, iPhone Duo (inner and outer displays), iPad 13″/11″/9.7″, Apple Watch, and Play phone, 7″/10″ tablet, Chromebook, Wear OS, Android TV, Android Automotive and Android XR. Store count limits are checked before export, each device shows the current store rule (required, optional, scaled or deadline), and files over Google Play's size limits are re-encoded as JPEG automatically.
 - **What you see is what you export.** The editor preview and the export use the same canvas renderer, so they cannot drift apart.
-- **Real device frames.** iPhone with Dynamic Island, Android phones with a punch-hole camera, iPad, Android tablets, a Chromebook-style laptop and Apple Watch, all drawn in code. You can also use a floating card or a full-bleed layout.
+- **Real device frames.** iPhone with Dynamic Island, an unfolded iPhone Duo, Android phones with a punch-hole camera, iPad, Android tablets, a Chromebook-style laptop and Apple Watch, all drawn in code. You can also use a floating card or a full-bleed layout.
 - **Typography that holds up.** Five bundled open-source fonts with auto-fit and balanced line wrapping, plus colour emoji.
 - **Templates and story mode.** One-click looks. Story mode applies a template to the whole set and numbers each screenshot.
 - **Captions for the whole set.** Built-in suggestions work offline. With your own Anthropic API key, Claude writes captions from your app description. The key goes straight from your browser to `api.anthropic.com` and nowhere else.
@@ -46,10 +46,12 @@ Open <http://localhost:3000>. No environment variables or accounts are needed.
 4. **Export.** Review every output against the store checklist, then download one ZIP:
 
 ```
-app-store/iphone-6.9/01.png   1320×2868
-app-store/ipad-13/01.png      2064×2752
-play-store/phone/01.png       1080×1920
-play-store/chromebook/01.png  1920×1080
+app-store/iphone-6.3/01.png        1206×2622
+app-store/iphone-duo-inner/01.png  2007×2853
+app-store/ipad-13/01.png           2064×2752
+play-store/phone/01.png            1080×1920
+play-store/chromebook/01.png       1920×1080
+play-store/xr/01.png               3840×2400
 …
 ```
 

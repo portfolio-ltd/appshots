@@ -45,7 +45,7 @@ const FEATURES = [
   },
   {
     title: "Real device frames",
-    body: "iPhone, iPad, Android phones and tablets, Chromebook and Apple Watch, with tilt, gradients, stickers and full-bleed layouts.",
+    body: "iPhone and iPhone Duo, iPad, Android phones and tablets, Chromebook and Apple Watch, with tilt, gradients, stickers and full-bleed layouts.",
   },
   {
     title: "Private by design",

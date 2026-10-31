@@ -213,6 +213,10 @@ function drawButtons(ctx: Ctx, g: FrameGeometry) {
   } else if (kind === "android-phone") {
     button("right", 0.2, 0.08);
     button("right", 0.31, 0.12);
+  } else if (kind === "foldable") {
+    button("left", 0.14, 0.05);
+    button("left", 0.21, 0.05);
+    button("right", 0.18, 0.09);
   } else if (kind === "ipad") {
     button("top", 0.8, 0.07);
     button("right", 0.08, 0.05);
@@ -292,6 +296,15 @@ function drawCameras(ctx: Ctx, g: FrameGeometry) {
     ctx.beginPath();
     ctx.arc(0, screen.y + short * 0.035, d / 2, 0, Math.PI * 2);
     ctx.fill();
+  } else if (kind === "foldable") {
+    // Punch-hole camera in the right-hand panel, and a faint crease down the hinge.
+    const d = short * 0.03;
+    ctx.beginPath();
+    ctx.arc(screen.x + screen.w * 0.75, screen.y + short * 0.03, d / 2, 0, Math.PI * 2);
+    ctx.fill();
+    const crease = Math.max(1, short * 0.004);
+    ctx.fillStyle = "rgba(0, 0, 0, 0.12)";
+    ctx.fillRect(-crease / 2, screen.y, crease, screen.h);
   } else if (kind === "ipad" || kind === "android-tablet" || kind === "laptop") {
     const d = Math.max(2, g.bezel * 0.3);
     ctx.fillStyle = "#26262a";

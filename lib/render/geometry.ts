@@ -35,6 +35,8 @@ interface FrameRatios {
 
 const RATIOS: Record<FrameKind, FrameRatios> = {
   iphone: { bezel: 0.04, screenRadius: 0.13 },
+  // Book-style fold opened flat: thin bezel, squarer corners than a phone.
+  foldable: { bezel: 0.03, screenRadius: 0.05 },
   ipad: { bezel: 0.05, screenRadius: 0.04 },
   watch: { bezel: 0.1, screenRadius: 0.24 },
   "android-phone": { bezel: 0.032, screenRadius: 0.08 },

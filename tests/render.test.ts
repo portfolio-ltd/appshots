@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_DESIGN, DEVICE_SPECS, outputSize, type DesignConfig } from "../lib/constants";
+import { DEFAULT_DESIGN, DEVICE_SPECS, isLandscapeOutput, outputSize, type DesignConfig } from "../lib/constants";
 import { frameGeometry, rotatedBounds } from "../lib/render/geometry";
 import { balanceLines, fitText, layoutDesign, wrapText, type MeasureFn } from "../lib/render/layout";
 import { hitTestOverlay, withAlpha } from "../lib/render/draw";
@@ -130,7 +130,7 @@ describe("layoutDesign", () => {
 
 describe("frameGeometry", () => {
   it("wraps the screen in the body", () => {
-    for (const kind of ["iphone", "ipad", "watch", "android-phone", "android-tablet", "laptop", "none"] as const) {
+    for (const kind of ["iphone", "foldable", "ipad", "watch", "android-phone", "android-tablet", "laptop", "none"] as const) {
       const g = frameGeometry(kind, 300, 600);
       expect(g.screen.w).toBe(300);
       expect(g.screen.x).toBeGreaterThanOrEqual(g.body.x);
@@ -145,9 +145,12 @@ describe("store specs", () => {
     for (const spec of DEVICE_SPECS) {
       const { width, height } = spec.output;
       if (spec.store === "play-store") {
-        // Play: 16:9 or 9:16, sides within 320–7680.
-        expect(Math.max(width, height) / Math.min(width, height)).toBeCloseTo(16 / 9, 2);
+        // Play: 16:9 phones/tablets/TV, 8:5 XR, 1:1 Wear OS, and the two fixed
+        // Automotive sizes (800×1280 is 5:8, 1024×768 is 4:3). Sides within 320–7680.
+        const ratio = Math.max(width, height) / Math.min(width, height);
+        expect([16 / 9, 8 / 5, 1, 4 / 3].some((r) => Math.abs(ratio - r) < 0.01)).toBe(true);
         expect(Math.min(width, height)).toBeGreaterThanOrEqual(320);
+        expect(Math.max(width, height)).toBeLessThanOrEqual(7680);
       } else {
         expect(spec.acceptedDimensions).toContain(`${width}×${height}`);
       }
@@ -159,6 +162,31 @@ describe("store specs", () => {
     expect(outputSize(iphone, "landscape")).toEqual({ width: 2868, height: 1320 });
     const watch = DEVICE_SPECS.find((d) => d.id === "ios-watch")!;
     expect(outputSize(watch, "landscape")).toEqual({ width: 422, height: 514 });
+  });
+
+  it("keeps fixed-orientation devices at their store size", () => {
+    const xr = DEVICE_SPECS.find((d) => d.id === "play-xr")!;
+    expect(outputSize(xr, "portrait")).toEqual({ width: 3840, height: 2400 });
+    expect(isLandscapeOutput(xr, "portrait")).toBe(true);
+    const tv = DEVICE_SPECS.find((d) => d.id === "play-tv")!;
+    expect(isLandscapeOutput(tv, null)).toBe(true);
+    const wear = DEVICE_SPECS.find((d) => d.id === "play-wear")!;
+    expect(isLandscapeOutput(wear, "landscape")).toBe(false);
+  });
+
+  it("matches the required App Store sizes", () => {
+    // Apple requires Dynamic Island (medium) for iPhone and 13" for iPad.
+    expect(DEVICE_SPECS.find((d) => d.id === "ios-iphone-6.3")!.output).toEqual({ width: 1206, height: 2622 });
+    expect(DEVICE_SPECS.find((d) => d.id === "ios-ipad-13")!.output).toEqual({ width: 2064, height: 2752 });
+    expect(DEVICE_SPECS.find((d) => d.id === "ios-iphone-duo-inner")!.output).toEqual({ width: 2007, height: 2853 });
+    expect(DEVICE_SPECS.find((d) => d.id === "ios-iphone-duo-outer")!.output).toEqual({ width: 1398, height: 2034 });
+  });
+
+  it("has unique ids and export folders", () => {
+    const ids = DEVICE_SPECS.map((d) => d.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    const folders = DEVICE_SPECS.map((d) => `${d.store}/${d.slug}`);
+    expect(new Set(folders).size).toBe(folders.length);
   });
 });
 
