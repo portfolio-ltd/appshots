@@ -41,6 +41,30 @@ npm run dev
 
 Open <http://localhost:3000>. No environment variables or accounts are needed.
 
+## Command line
+
+The same renderer runs headless, so you can regenerate every screenshot whenever the app changes, locally or in CI. Describe your screens once in `appshots.json`:
+
+```json
+{
+  "template": "night-glow",
+  "devices": {
+    "ios-iphone-6.9": "raw/phone-{key}.png",
+    "play-phone": "raw/android-{key}.png"
+  },
+  "shots": [
+    { "key": "home", "headline": "Tap once.\nKeep the chain.", "subheading": "Every habit you're building, on one screen." }
+  ]
+}
+```
+
+```bash
+npx appshots-cli init      # sample config
+npx appshots-cli render    # writes appshots-out/<store>/<device>/01-home.png
+```
+
+Until the package is on npm, run it from a clone: `npm run cli:build`, then `npm run cli -- render cli/example/appshots.json`. Full options are in [cli/README.md](cli/README.md).
+
 ## How it works
 
 1. **App info.** Name, description and category, plus the stores and devices you're targeting.
@@ -74,6 +98,7 @@ lib/render/          The renderer — pure layout + geometry, and canvas drawing
 lib/constants.ts     Device specs (output sizes, frames, store limits), templates
 lib/export.ts        Full-resolution render, size-limit handling, ZIP
 lib/autodesign.ts    Caption generation (local heuristic + Claude BYOK, which sees the screens)
+cli/                 The command-line version (appshots-cli), sharing lib/render and lib/constants
 lib/demo.ts          The sample project (real Notchday captures in public/examples/)
 lib/shots.ts         Borrowed screenshots (the feature graphic reuses a phone shot)
 lib/persist.ts       Draft storage (localStorage)

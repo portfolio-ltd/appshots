@@ -58,6 +58,10 @@ const FEATURES = [
     title: "AI captions, optional",
     body: "Captions for the whole set in one click. Built-in suggestions need no setup; with your own Anthropic key, Claude reads each screen and writes to it.",
   },
+  {
+    title: "Also a command line tool",
+    body: "The same renderer runs headless. Keep your captions in a JSON file and regenerate every screenshot from a script or CI.",
+  },
 ];
 
 export default function HomePage() {
@@ -135,7 +139,7 @@ export default function HomePage() {
       </section>
 
       <section className="border-t bg-muted/30">
-        <div className="max-w-6xl mx-auto px-4 py-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="max-w-6xl mx-auto px-4 py-14 grid sm:grid-cols-2 lg:grid-cols-5 gap-6">
           {FEATURES.map((f) => (
             <div key={f.title} className="space-y-2">
               <h2 className="text-base font-semibold">{f.title}</h2>
