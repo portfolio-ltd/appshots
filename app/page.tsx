@@ -3,40 +3,43 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { DesignCanvas } from "@/components/DesignCanvas";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useExampleFile } from "@/hooks/useExampleFile";
 import { useHydrated } from "@/hooks/useHydrated";
-import { DEFAULT_DESIGN, TEMPLATE_PRESETS, type DesignConfig } from "@/lib/constants";
+import { DEFAULT_DESIGN, TEMPLATE_PRESETS, templateStyle, type DesignConfig } from "@/lib/constants";
+import { loadDemo } from "@/lib/demo";
 import { hasDraft, loadAppInfo } from "@/lib/persist";
 import { REPO_URL, SITE_NAME } from "@/lib/site";
 
-const SAMPLES: { deviceId: string; config: DesignConfig }[] = [
+/** Real captures from two indie apps, each rendered live with a built-in template. */
+const SAMPLES: { file: string; deviceId: string; config: DesignConfig }[] = [
   {
+    file: "notchday-today.jpg",
     deviceId: "ios-iphone-6.9",
-    config: {
-      ...DEFAULT_DESIGN,
-      ...TEMPLATE_PRESETS.find((t) => t.id === "midnight-launch")!.config,
-      headline: "Plan your week in minutes",
-      subheading: "Everything you need, beautifully organised.",
-    },
+    config: sample("night-glow", 0, "Tap once.\nKeep the chain.", "Every habit you're building, on one screen."),
   },
   {
-    deviceId: "play-phone",
-    config: {
-      ...DEFAULT_DESIGN,
-      ...TEMPLATE_PRESETS.find((t) => t.id === "sunset-energy")!.config,
-      headline: "Track every workout",
-      subheading: "Streaks, stats and gentle reminders.",
-    },
+    file: "localspend-insights.jpg",
+    deviceId: "ios-iphone-6.3",
+    config: sample("violet-lilac", 1, "See where\nit all went", "Budgets, categories and trends at a glance."),
   },
   {
-    deviceId: "ios-ipad-13",
-    config: {
-      ...DEFAULT_DESIGN,
-      ...TEMPLATE_PRESETS.find((t) => t.id === "paper-minimal")!.config,
-      headline: "Made for the big screen",
-      subheading: "Split view, keyboard shortcuts, Apple Pencil.",
-    },
+    file: "notchday-light.jpg",
+    deviceId: "ios-iphone-6.9",
+    config: sample("soft-daylight", 1, "No account.\nNo subscription.", "Your data stays on your device."),
   },
 ];
+
+function sample(templateId: string, index: number, headline: string, subheading: string): DesignConfig {
+  const t = TEMPLATE_PRESETS.find((x) => x.id === templateId)!;
+  return { ...DEFAULT_DESIGN, ...templateStyle(t, index), headline, subheading };
+}
+
+function Sample({ file, deviceId, config }: (typeof SAMPLES)[number]) {
+  const image = useExampleFile(file);
+  return <DesignCanvas deviceId={deviceId} config={config} file={image} renderHeight={720} className="w-full h-auto rounded-xl shadow-xl" />;
+}
 
 const FEATURES = [
   {
@@ -53,13 +56,26 @@ const FEATURES = [
   },
   {
     title: "AI captions, optional",
-    body: "Write captions for the whole set in one click. It works offline with built-in suggestions, or with your own Anthropic API key.",
+    body: "Captions for the whole set in one click. Built-in suggestions need no setup; with your own Anthropic key, Claude reads each screen and writes to it.",
   },
 ];
 
 export default function HomePage() {
   const hydrated = useHydrated();
   const draftName = hydrated && hasDraft() ? loadAppInfo()?.name : null;
+  const router = useRouter();
+  const [demoState, setDemoState] = useState<"idle" | "loading" | "error">("idle");
+
+  async function tryDemo() {
+    if (draftName && !window.confirm(`Replace your draft "${draftName}" with the sample project?`)) return;
+    setDemoState("loading");
+    try {
+      await loadDemo();
+      router.push("/customise");
+    } catch {
+      setDemoState("error");
+    }
+  }
 
   return (
     <main className="min-h-screen bg-background">
@@ -86,27 +102,36 @@ export default function HomePage() {
             <Button asChild size="lg" className="px-8 shadow-lg shadow-primary/20">
               <Link href="/onboarding">{draftName ? "Start a new app" : "Get started"}</Link>
             </Button>
-            {draftName && (
+            {draftName ? (
               <Button asChild size="lg" variant="outline">
                 <Link href="/customise">Continue “{draftName}”</Link>
               </Button>
+            ) : (
+              <Button size="lg" variant="outline" onClick={tryDemo} disabled={demoState === "loading"}>
+                {demoState === "loading" ? "Loading sample…" : "Try with sample screenshots"}
+              </Button>
             )}
           </div>
-          <p className="text-xs text-muted-foreground">No sign-up. Nothing is uploaded.</p>
+          <p className="text-xs text-muted-foreground">
+            No sign-up. Nothing is uploaded.
+            {draftName && (
+              <>
+                {" "}
+                <button type="button" onClick={tryDemo} className="underline hover:text-foreground">Try the sample project</button>
+              </>
+            )}
+            {demoState === "error" && <span className="text-destructive"> Couldn&apos;t load the sample. Check your connection.</span>}
+          </p>
         </div>
 
-        <div className="grid grid-cols-[1fr_1fr_1.25fr] gap-3 items-end" aria-hidden>
-          {SAMPLES.map((s) => (
-            <DesignCanvas
-              key={s.deviceId}
-              deviceId={s.deviceId}
-              config={s.config}
-              file={null}
-              renderHeight={640}
-              className="w-full h-auto rounded-xl shadow-xl"
-            />
-          ))}
-        </div>
+        <figure className="space-y-3">
+          <div className="grid grid-cols-3 gap-3 items-end" aria-hidden>
+            {SAMPLES.map((s) => <Sample key={s.file} {...s} />)}
+          </div>
+          <figcaption className="text-xs text-muted-foreground text-center">
+            Real screens from Notchday and LocalSpend, rendered live in this page with the Night Glow, Violet &amp; Lilac and Soft Daylight templates.
+          </figcaption>
+        </figure>
       </section>
 
       <section className="border-t bg-muted/30">

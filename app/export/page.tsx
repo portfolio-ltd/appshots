@@ -9,6 +9,7 @@ import { DesignCanvas } from "@/components/DesignCanvas";
 import { MissingDraft } from "@/components/MissingDraft";
 import { useHydrated } from "@/hooks/useHydrated";
 import { useShots } from "@/hooks/useShots";
+import { withFallbacks } from "@/lib/shots";
 import { DEVICE_SPECS, isLandscapeOutput, outputSize, type AppInfo } from "@/lib/constants";
 import { buildZip, downloadBlob, renderFullSize, slugify, type ExportItem } from "@/lib/export";
 import { loadAppInfo, loadDesigns, resolveDesign } from "@/lib/persist";
@@ -21,7 +22,9 @@ export default function ExportPage() {
 }
 
 function Exporter({ appInfo }: { appInfo: AppInfo }) {
-  const { shots } = useShots(appInfo.deviceIds);
+  const { shots: ownShots } = useShots(appInfo.deviceIds);
+  // The feature graphic borrows a phone screenshot until it has its own.
+  const shots = ownShots ? withFallbacks(ownShots, appInfo.deviceIds) : null;
   const [designs] = useState(() => loadDesigns());
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);

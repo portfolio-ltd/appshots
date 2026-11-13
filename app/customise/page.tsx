@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { StepIndicator } from "@/components/StepIndicator";
 import { DesignCanvas } from "@/components/DesignCanvas";
@@ -24,20 +25,25 @@ import {
   isLandscapeOutput,
   outputSize,
   newOverlayId,
+  templateStyle,
   numberBadgeDataUri,
   type AppInfo,
   type DesignConfig,
   type OverlayItem,
   type Template,
 } from "@/lib/constants";
+import { toJpegBase64 } from "@/lib/assets";
 import { saveOverlayFile } from "@/lib/files";
+import { isBorrowed, withFallbacks } from "@/lib/shots";
 import {
   designKey,
   loadApiKey,
   loadAppInfo,
+  loadCaptionNotes,
   loadDesigns,
   resolveDesign,
   saveApiKey,
+  saveCaptionNotes,
   saveDesigns,
   type DesignMap,
 } from "@/lib/persist";
@@ -45,7 +51,8 @@ import {
 /** Style fields — everything except per-screenshot copy and stickers. */
 const STYLE_KEYS = [
   "bgColor", "bgColor2", "gradientAngle", "fontId", "fontSize", "subSize", "fontColor",
-  "textAlign", "textPosition", "deviceStyle", "deviceScale", "tilt", "orientation",
+  "textAlign", "textPosition", "deviceStyle", "deviceScale", "deviceFit", "tilt", "orientation",
+  "glowColor", "glowStrength", "glowAt",
 ] as const satisfies readonly (keyof DesignConfig)[];
 
 function pickStyle(c: DesignConfig): Partial<DesignConfig> {
@@ -61,7 +68,9 @@ export default function CustomisePage() {
 
 function Editor({ appInfo }: { appInfo: AppInfo }) {
   const router = useRouter();
-  const { shots } = useShots(appInfo.deviceIds);
+  const { shots: ownShots } = useShots(appInfo.deviceIds);
+  // The feature graphic borrows a phone screenshot until it has its own.
+  const shots = ownShots ? withFallbacks(ownShots, appInfo.deviceIds) : null;
   const [designs, setDesigns] = useState<DesignMap>(() => loadDesigns());
   // `?device=…&i=…` deep-links from the export page to one screenshot.
   const [deviceId, setDeviceId] = useState(() => {
@@ -73,8 +82,9 @@ function Editor({ appInfo }: { appInfo: AppInfo }) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [emojiTarget, setEmojiTarget] = useState<"headline" | "subheading">("headline");
-  const [storyMode, setStoryMode] = useState(false);
-  const headlineRef = useRef<HTMLInputElement>(null);
+  const [applyToAll, setApplyToAll] = useState(true);
+  const [numbered, setNumbered] = useState(false);
+  const headlineRef = useRef<HTMLTextAreaElement>(null);
   const subheadingRef = useRef<HTMLInputElement>(null);
   const overlayUploadRef = useRef<HTMLInputElement>(null);
 
@@ -130,16 +140,19 @@ function Editor({ appInfo }: { appInfo: AppInfo }) {
     return kept;
   }
 
+  /** The template's look for screenshot `index`, keeping its stickers and re-placing generated ones. */
+  function templatePatch(t: Template, current: DesignConfig, index: number): Partial<DesignConfig> {
+    const style = templateStyle(t, index);
+    const textTop = (style.textPosition ?? current.textPosition) === "top";
+    return { ...style, overlays: templateOverlays(current.overlays, t, numbered ? index + 1 : null, textTop) };
+  }
+
   function applyTemplate(t: Template) {
-    if (storyMode) {
-      updateMany((current, target) => {
-        const merged = { ...current, ...t.config };
-        return { ...t.config, overlays: templateOverlays(current.overlays, t, target.idx + 1, merged.textPosition === "top") };
-      });
+    if (applyToAll) {
+      updateMany((current, target) => templatePatch(t, current, target.idx));
       flash(`Applied “${t.label}” to all ${allTargets.length} screenshots`);
     } else {
-      const merged = { ...config, ...t.config };
-      update({ ...t.config, overlays: templateOverlays(config.overlays, t, null, merged.textPosition === "top") });
+      update(templatePatch(t, config, safeIdx));
     }
   }
 
@@ -156,6 +169,18 @@ function Editor({ appInfo }: { appInfo: AppInfo }) {
   const [applySuggestedTemplate, setApplySuggestedTemplate] = useState(true);
   // Each press of "Write captions" without a key cycles to different suggestions.
   const [localSeed, setLocalSeed] = useState(0);
+  const [notes, setNotes] = useState(() => loadCaptionNotes());
+
+  /** One screenshot per position for Claude to look at: the first device that has one, phones first. */
+  async function screensForClaude(count: number): Promise<(string | null)[]> {
+    const order = [...devices].sort((a, b) => Number(/phone|iphone/.test(b.id)) - Number(/phone|iphone/.test(a.id)));
+    return Promise.all(
+      Array.from({ length: count }, async (_, i) => {
+        const f = order.map((d) => ownShots?.[d.id]?.[i]).find(Boolean);
+        return f ? toJpegBase64(f).catch(() => null) : null;
+      }),
+    );
+  }
 
   async function writeCaptions() {
     const count = Math.max(1, ...devices.map((d) => shots?.[d.id]?.length ?? 0));
@@ -163,8 +188,9 @@ function Editor({ appInfo }: { appInfo: AppInfo }) {
     setError(null);
     let result;
     try {
-      result = apiKeyState.key.trim()
-        ? await aiAutoDesign(appInfo, count, apiKeyState.key.trim())
+      const key = apiKeyState.key.trim();
+      result = key
+        ? await aiAutoDesign(appInfo, count, key, { screens: await screensForClaude(count), notes })
         : localAutoDesign(appInfo, count, localSeed);
       setLocalSeed((s) => s + 1);
     } catch (e) {
@@ -177,11 +203,7 @@ function Editor({ appInfo }: { appInfo: AppInfo }) {
     updateMany((current, target) => {
       const copy = result.shots[target.idx] ?? result.shots[0];
       const patch: Partial<DesignConfig> = { headline: copy.headline, subheading: copy.subheading };
-      if (applySuggestedTemplate && template) {
-        Object.assign(patch, template.config, {
-          overlays: templateOverlays(current.overlays, template, storyMode ? target.idx + 1 : null, (template.config.textPosition ?? "top") === "top"),
-        });
-      }
+      if (applySuggestedTemplate && template) Object.assign(patch, templatePatch(template, current, target.idx));
       return patch;
     });
     flash(result.source === "ai" ? "Captions written by Claude" : "Captions filled with built-in suggestions");
@@ -253,10 +275,10 @@ function Editor({ appInfo }: { appInfo: AppInfo }) {
           <div className="space-y-4 order-2 lg:order-1">
             <Section
               title="✨ Captions for the whole set"
-              description="Writes a headline and subheading for every screenshot from your app description."
+              description="Writes a headline and subheading for every screenshot. With your key, Claude looks at each screen."
               action={
                 <Button size="sm" onClick={writeCaptions} disabled={aiBusy || totalFiles === 0}>
-                  {aiBusy ? "Writing…" : "Write captions"}
+                  {aiBusy ? (apiKeyState.key.trim() ? "Reading your screens…" : "Writing…") : "Write captions"}
                 </Button>
               }
             >
@@ -292,9 +314,22 @@ function Editor({ appInfo }: { appInfo: AppInfo }) {
                     Also apply the suggested template
                   </label>
                 </div>
+                {apiKeyState.key.trim() && (
+                  <div className="space-y-1.5 pt-1">
+                    <label htmlFor="caption-notes" className="text-xs font-medium">More context for Claude (optional)</label>
+                    <Textarea
+                      id="caption-notes"
+                      rows={3}
+                      placeholder="Paste your README, feature list or release notes. Captions get more specific."
+                      value={notes}
+                      onChange={(e) => { setNotes(e.target.value); saveCaptionNotes(e.target.value); }}
+                      className="text-xs"
+                    />
+                  </div>
+                )}
                 <p className="text-[11px] text-muted-foreground">
                   {apiKeyState.key.trim()
-                    ? `Uses ${AUTODESIGN_MODEL}, billed to your key. The key is sent only to api.anthropic.com, straight from your browser.`
+                    ? `Uses ${AUTODESIGN_MODEL}, billed to your key. Your key and downscaled copies of your screenshots go only to api.anthropic.com, straight from your browser.`
                     : "Without a key, we use built-in suggestions. Add your own key for captions written by Claude."}
                 </p>
               </div>
@@ -302,44 +337,69 @@ function Editor({ appInfo }: { appInfo: AppInfo }) {
 
             <Section
               title="Templates"
-              description={storyMode ? "Applies to every screenshot, with step numbers." : "A complete look in one click."}
+              description="A complete look in one click. Some give each screenshot its own colour."
               action={
-                <label className="flex items-center gap-1.5 text-xs font-medium cursor-pointer select-none">
-                  <Checkbox checked={storyMode} onCheckedChange={(v) => setStoryMode(!!v)} />
-                  Story mode
-                </label>
+                <div className="flex flex-col items-end gap-1.5">
+                  <label className="flex items-center gap-1.5 text-xs font-medium cursor-pointer select-none">
+                    <Checkbox checked={applyToAll} onCheckedChange={(v) => setApplyToAll(!!v)} />
+                    All screenshots
+                  </label>
+                  <label className="flex items-center gap-1.5 text-xs font-medium cursor-pointer select-none">
+                    <Checkbox checked={numbered} onCheckedChange={(v) => setNumbered(!!v)} />
+                    Step numbers
+                  </label>
+                </div>
               }
             >
               <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
-                {TEMPLATE_PRESETS.map((t) => (
-                  <button key={t.id} type="button" onClick={() => applyTemplate(t)} className="group flex flex-col items-center gap-1">
-                    <span
-                      className="w-full aspect-[3/4] rounded-xl border-2 border-border group-hover:border-primary/60 transition-colors flex flex-col items-center justify-start pt-2 gap-1 overflow-hidden"
-                      style={{ background: `linear-gradient(${t.config.gradientAngle}deg, ${t.config.bgColor}, ${t.config.bgColor2})` }}
-                    >
-                      <span className="w-3/5 h-1.5 rounded-full" style={{ backgroundColor: t.config.fontColor }} />
-                      <span className="w-2/5 h-1 rounded-full opacity-60" style={{ backgroundColor: t.config.fontColor }} />
+                {TEMPLATE_PRESETS.map((t) => {
+                  const look = templateStyle(t, 0);
+                  const glow = look.glowColor
+                    ? `radial-gradient(ellipse 90% 45% at 50% ${look.glowAt === "device" ? "75%" : "0%"}, ${look.glowColor}aa, transparent), `
+                    : "";
+                  return (
+                    <button key={t.id} type="button" onClick={() => applyTemplate(t)} className="group flex flex-col items-center gap-1" title={t.variants ? `${t.label}: a different colour per screenshot` : t.label}>
                       <span
-                        className="mt-1 w-2/5 flex-1 rounded-t-lg border-2 border-b-0"
-                        style={{ borderColor: t.config.deviceStyle === "frame" ? "#2a2a2d" : "transparent", backgroundColor: "rgba(255,255,255,0.35)" }}
-                      />
-                    </span>
-                    <span className="text-[10px] text-muted-foreground truncate w-full text-center">{t.label}</span>
-                  </button>
-                ))}
+                        className="w-full aspect-[3/4] rounded-xl border-2 border-border group-hover:border-primary/60 transition-colors flex flex-col items-center justify-start pt-2 gap-1 overflow-hidden relative"
+                        style={{ background: `${glow}linear-gradient(${look.gradientAngle}deg, ${look.bgColor}, ${look.bgColor2})` }}
+                      >
+                        <span className="w-3/5 h-1.5 rounded-full" style={{ backgroundColor: look.fontColor }} />
+                        <span className="w-2/5 h-1 rounded-full opacity-60" style={{ backgroundColor: look.fontColor }} />
+                        <span
+                          className={`mt-1 ${look.deviceFit === "fill" ? "w-3/5" : "w-2/5"} flex-1 rounded-t-lg border-2 border-b-0`}
+                          style={{ borderColor: look.deviceStyle === "frame" ? "#2a2a2d" : "transparent", backgroundColor: "rgba(255,255,255,0.35)" }}
+                        />
+                        {t.variants && (
+                          <span className="absolute bottom-1 right-1 flex gap-0.5" aria-hidden>
+                            {t.variants.slice(0, 4).map((v, i) => {
+                              const c = v.glowColor ?? v.bgColor ?? look.bgColor;
+                              return <span key={i} className="w-1.5 h-1.5 rounded-full ring-1 ring-white/60" style={{ backgroundColor: c }} />;
+                            })}
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground truncate w-full text-center">{t.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             </Section>
 
             <Section title="Text">
               <div className="space-y-1.5">
-                <label htmlFor="headline" className="text-xs font-medium">Headline</label>
-                <Input
+                <div className="flex items-baseline justify-between">
+                  <label htmlFor="headline" className="text-xs font-medium">Headline</label>
+                  <span className="text-[11px] text-muted-foreground">Enter starts a new line</span>
+                </div>
+                <Textarea
                   id="headline"
                   ref={headlineRef}
-                  placeholder="e.g. Track every workout"
+                  rows={2}
+                  placeholder={"e.g. Tap once.\nKeep the chain."}
                   value={config.headline}
                   onChange={(e) => update({ headline: e.target.value })}
                   onFocus={() => setEmojiTarget("headline")}
+                  className="resize-none"
                 />
               </div>
               <div className="space-y-1.5">
@@ -421,6 +481,27 @@ function Editor({ appInfo }: { appInfo: AppInfo }) {
               {!solid && (
                 <Slider label="Gradient angle" value={config.gradientAngle} min={0} max={360} step={5} format={(v) => `${v}°`} onChange={(gradientAngle) => update({ gradientAngle })} />
               )}
+              <label className="flex items-center gap-2 text-xs cursor-pointer pt-1">
+                <Checkbox
+                  checked={Boolean(config.glowColor)}
+                  onCheckedChange={(v) => update({ glowColor: v ? "#8b5cf6" : "" })}
+                />
+                Glow (a soft pool of light)
+              </label>
+              {config.glowColor && (
+                <>
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <ColorField label="Glow colour" value={config.glowColor} onChange={(glowColor) => update({ glowColor })} />
+                    <Segmented
+                      label="Behind"
+                      value={config.glowAt}
+                      options={[{ value: "text", label: "Caption" }, { value: "device", label: "Device" }]}
+                      onChange={(glowAt) => update({ glowAt })}
+                    />
+                  </div>
+                  <Slider label="Glow strength" value={config.glowStrength} min={10} max={100} step={5} format={(v) => `${v}%`} onChange={(glowStrength) => update({ glowStrength })} />
+                </>
+              )}
             </Section>
 
             <Section title="Device">
@@ -443,13 +524,24 @@ function Editor({ appInfo }: { appInfo: AppInfo }) {
                 />
               )}
               {config.deviceStyle !== "fullbleed" && (
+                <Segmented
+                  label="Fit"
+                  value={config.deviceFit}
+                  options={[
+                    { value: "contain", label: "Whole device" },
+                    { value: "fill", label: "Fill & run off edge" },
+                  ]}
+                  onChange={(deviceFit) => update(deviceFit === "fill" ? { deviceFit, deviceScale: 86 } : { deviceFit, deviceScale: 100 })}
+                />
+              )}
+              {config.deviceStyle !== "fullbleed" && (
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Slider
                     label="Size"
                     value={config.deviceScale}
                     min={60}
                     max={130}
-                    format={(v) => (v > 100 ? `${v}% (bleeds off edge)` : `${v}%`)}
+                    format={(v) => (config.deviceFit === "fill" ? `${v}% of width` : v > 100 ? `${v}% (bleeds off edge)` : `${v}%`)}
                     onChange={(deviceScale) => update({ deviceScale })}
                     onReset={config.deviceScale !== 100 ? () => update({ deviceScale: 100 }) : undefined}
                   />
@@ -559,6 +651,11 @@ function Editor({ appInfo }: { appInfo: AppInfo }) {
               />
             </div>
 
+            {ownShots && isBorrowed(ownShots, deviceId) && (
+              <p className="text-[11px] text-center text-muted-foreground">
+                Using your first phone screenshot. Add one for {spec.label} on the Upload page to use a different image.
+              </p>
+            )}
             {files.length > 0 ? (
               <div className="flex gap-1.5 flex-wrap justify-center">
                 {files.map((f, i) => (

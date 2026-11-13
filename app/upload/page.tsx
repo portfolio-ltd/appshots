@@ -10,6 +10,7 @@ import { useHydrated } from "@/hooks/useHydrated";
 import { useShots } from "@/hooks/useShots";
 import { DEVICE_SPECS, type AppInfo, type DeviceSpec } from "@/lib/constants";
 import { designKey, loadAppInfo, loadDesigns, saveDesigns } from "@/lib/persist";
+import { isBorrowed } from "@/lib/shots";
 
 const ACCEPTED = ["image/png", "image/jpeg", "image/webp"];
 const MAX_INPUT_MB = 30;
@@ -117,6 +118,7 @@ function UploadForm({ appInfo }: { appInfo: AppInfo }) {
                     loading={!shots}
                     onFiles={(fl) => handleFiles(spec, fl)}
                     onRemove={(i) => removeFile(spec, i)}
+                    borrowed={shots ? isBorrowed(shots, spec.id) : false}
                   />
                 ))}
               </div>
@@ -143,16 +145,22 @@ interface DeviceCardProps {
   loading: boolean;
   onFiles: (fl: FileList | null) => void;
   onRemove: (index: number) => void;
+  /** No uploads of its own, but it will reuse another device's screenshot. */
+  borrowed?: boolean;
 }
 
-function DeviceCard({ spec, files, loading, onFiles, onRemove }: DeviceCardProps) {
+function DeviceCard({ spec, files, loading, onFiles, onRemove, borrowed }: DeviceCardProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
-  const countLabel = spec.minCount > 0
+  const countLabel = borrowed
+    ? "reusing phone"
+    : spec.maxCount === 1
+    ? `${files.length} / 1`
+    : spec.minCount > 0
     ? `${files.length} / ${spec.minCount}–${spec.maxCount}`
     : `${files.length} / up to ${spec.maxCount}`;
-  const countOk = files.length >= spec.minCount && files.length > 0;
+  const countOk = borrowed || (files.length >= spec.minCount && files.length > 0);
   const full = files.length >= spec.maxCount;
 
   return (
@@ -163,6 +171,11 @@ function DeviceCard({ spec, files, loading, onFiles, onRemove }: DeviceCardProps
           <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
             Exports at {spec.output.width}×{spec.output.height}
           </p>
+          {spec.fallbackFrom && files.length === 0 && (
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Optional: leave empty to reuse your first phone screenshot.
+            </p>
+          )}
         </div>
         <span
           className={`text-[11px] px-2 py-0.5 rounded-full font-medium flex-shrink-0 border ${

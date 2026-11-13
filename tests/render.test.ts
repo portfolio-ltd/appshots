@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_DESIGN, DEVICE_SPECS, isLandscapeOutput, outputSize, type DesignConfig } from "../lib/constants";
+import { DEFAULT_DESIGN, DEVICE_SPECS, TEMPLATE_PRESETS, isLandscapeOutput, outputSize, templateStyle, type DesignConfig } from "../lib/constants";
 import { frameGeometry, rotatedBounds } from "../lib/render/geometry";
 import { balanceLines, fitText, layoutDesign, wrapText, type MeasureFn } from "../lib/render/layout";
 import { hitTestOverlay, withAlpha } from "../lib/render/draw";
@@ -123,6 +123,31 @@ describe("layoutDesign", () => {
     expect(big.text!.headline!.size / small.text!.headline!.size).toBeCloseTo(2, 5);
   });
 
+  it("fill mode sizes the device by the canvas width and runs it off the bottom", () => {
+    const l = layout({ headline: "Tap once.\nKeep the chain.", subheading: "Every habit, one screen.", deviceFit: "fill", deviceScale: 86 });
+    const d = l.device!;
+    const textBottom = l.text!.box.y + l.text!.box.h;
+    expect(d.geometry.box.w / l.width).toBeCloseTo(0.86, 2);
+    expect(d.cy - d.geometry.box.h / 2).toBeGreaterThan(textBottom);
+    expect(d.cy + d.geometry.box.h / 2).toBeGreaterThan(l.height);
+  });
+
+  it("keeps explicit line breaks in headlines", () => {
+    expect(layout({ headline: "Tap once.\nKeep the chain." }).text!.headline!.lines).toEqual(["Tap once.", "Keep the chain."]);
+  });
+
+  it("lays out the Play feature graphic as text left, phone right, running off the bottom", () => {
+    const l = layoutDesign({
+      width: 1024, height: 500, frame: "android-phone", screenAspect: 1080 / 2400,
+      config: { ...DEFAULT_DESIGN, headline: "LocalSpend", subheading: "Every rupee, sorted.", deviceFit: "fill", textAlign: "left" },
+      headlineWeight: 800, subWeight: 500, measure,
+    });
+    const d = l.device!;
+    expect(l.text!.box.x + l.text!.box.w).toBeLessThan(d.cx - d.geometry.box.w / 2);
+    expect(d.cy + d.geometry.box.h / 2).toBeGreaterThan(500);
+    expect(d.cy - d.geometry.box.h / 2).toBeGreaterThanOrEqual(0);
+  });
+
   it("has no device in full-bleed mode", () => {
     expect(layout({ deviceStyle: "fullbleed", headline: "Hi" }).device).toBeNull();
   });
@@ -144,7 +169,10 @@ describe("store specs", () => {
   it("only exports sizes the stores accept", () => {
     for (const spec of DEVICE_SPECS) {
       const { width, height } = spec.output;
-      if (spec.store === "play-store") {
+      if (spec.id === "play-feature-graphic") {
+        // Not a screenshot: Play requires exactly 1024×500.
+        expect([width, height]).toEqual([1024, 500]);
+      } else if (spec.store === "play-store") {
         // Play: 16:9 phones/tablets/TV, 8:5 XR, 1:1 Wear OS, and the two fixed
         // Automotive sizes (800×1280 is 5:8, 1024×768 is 4:3). Sides within 320–7680.
         const ratio = Math.max(width, height) / Math.min(width, height);
@@ -205,5 +233,21 @@ describe("helpers", () => {
     expect(hitTestOverlay(hits, 100, 140)).toBe("b");
     expect(hitTestOverlay(hits, 140, 100)).toBe("a");
     expect(hitTestOverlay(hits, 300, 300)).toBeNull();
+  });
+});
+
+describe("templateStyle", () => {
+  it("cycles per-screenshot variants on top of the shared config", () => {
+    const t = TEMPLATE_PRESETS.find((x) => x.id === "night-glow")!;
+    const n = t.variants!.length;
+    expect(templateStyle(t, 0).glowColor).toBe(t.variants![0].glowColor);
+    expect(templateStyle(t, 1).glowColor).not.toBe(templateStyle(t, 0).glowColor);
+    expect(templateStyle(t, n)).toEqual(templateStyle(t, 0));
+    expect(templateStyle(t, 3).bgColor).toBe(t.config.bgColor);
+  });
+
+  it("works for templates without variants", () => {
+    const t = TEMPLATE_PRESETS.find((x) => !x.variants)!;
+    expect(templateStyle(t, 5)).toEqual(t.config);
   });
 });

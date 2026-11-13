@@ -64,6 +64,8 @@ export interface DeviceSpec {
   note?: string;
   /** The store wants the raw app UI only, so the design defaults to full-bleed with no caption. */
   uiOnly?: boolean;
+  /** With no uploads of its own, the device borrows the first screenshot of the first of these that has one. */
+  fallbackFrom?: string[];
 }
 
 export const DEVICE_SPECS: DeviceSpec[] = [
@@ -142,6 +144,15 @@ export const DEVICE_SPECS: DeviceSpec[] = [
     defaultOrientation: "landscape", allowLandscape: false,
     acceptedDimensions: "8:5 landscape, 3840×2400 recommended (min 1920×1200)",
     note: "Required for Android XR apps",
+  },
+  {
+    id: "play-feature-graphic", label: "Feature graphic", store: "play-store", slug: "feature-graphic",
+    minCount: 1, maxCount: 1, maxFileMB: 15,
+    output: { width: 1024, height: 500 }, frame: "android-phone",
+    defaultOrientation: "landscape", allowLandscape: false,
+    acceptedDimensions: "1024×500, PNG or JPEG",
+    note: "Required for every Play listing. Reuses your first phone screenshot unless you add one",
+    fallbackFrom: ["play-phone", "ios-iphone-6.9", "ios-iphone-6.3"],
   },
   // ── App Store ───────────────────────────────────────────────────────────────
   {
@@ -271,6 +282,8 @@ export type FontId = "sans" | "display" | "serif" | "rounded" | "mono";
  */
 export type DeviceStyle = "frame" | "flat" | "fullbleed";
 
+export type DeviceFit = "contain" | "fill";
+
 export interface DesignConfig {
   bgColor: string;
   /** Second gradient stop. Equal to `bgColor` for a solid background. */
@@ -288,6 +301,16 @@ export interface DesignConfig {
   deviceStyle: DeviceStyle;
   /** Device size relative to the space left after the text; > 100 bleeds off the edge. */
   deviceScale: number;       // 60–130 (%)
+  /**
+   * - `contain`: the whole device fits in the space beside the text.
+   * - `fill`: the device fills the canvas across and runs off the far edge.
+   */
+  deviceFit: DeviceFit;
+  /** Soft pool of light over the background; "" turns it off. */
+  glowColor: string;
+  glowStrength: number;      // 0–100
+  /** Where the glow sits: behind the caption or behind the device. */
+  glowAt: "text" | "device";
   tilt: number;              // degrees, -20 to 20
   /** `null` uses the device's default orientation. */
   orientation: Orientation | null;
@@ -323,6 +346,10 @@ export const DEFAULT_DESIGN: DesignConfig = {
   textPosition: "top",
   deviceStyle: "frame",
   deviceScale: 100,
+  deviceFit: "contain",
+  glowColor: "",
+  glowStrength: 60,
+  glowAt: "text",
   tilt: 0,
   orientation: null,
   overlays: [],
@@ -332,6 +359,8 @@ export const DEFAULT_DESIGN: DesignConfig = {
 export function deviceDefaults(spec: DeviceSpec): Partial<DesignConfig> {
   if (spec.frame === "watch" || spec.uiOnly) return { deviceStyle: "fullbleed", headline: "", subheading: "" };
   if (spec.frame === "none") return { deviceStyle: "flat" };
+  // A 500px-tall banner: big type on the left, the phone running off the bottom.
+  if (spec.id === "play-feature-graphic") return { deviceFit: "fill", textAlign: "left", fontSize: 220, subSize: 90 };
   return {};
 }
 
@@ -392,10 +421,66 @@ export interface Template {
   config: Partial<DesignConfig>;
   /** BuiltinOverlay id added as a small accent when the template is applied. */
   accentOverlayId?: string;
+  /**
+   * Per-screenshot changes, cycled by position: screenshot i gets
+   * `variants[i % variants.length]` on top of `config`. Keeps a set related
+   * while giving each screen its own colour.
+   */
+  variants?: Partial<DesignConfig>[];
+}
+
+/** The style a template gives the screenshot at `index` in the set. */
+export function templateStyle(t: Template, index: number): Partial<DesignConfig> {
+  const variant = t.variants?.length ? t.variants[index % t.variants.length] : {};
+  return { ...t.config, ...variant };
 }
 
 // Keep ids in sync with TEMPLATE_IDS in lib/autodesign.ts.
 export const TEMPLATE_PRESETS: Template[] = [
+  {
+    // Dark base, a different coloured glow behind each caption, device filling the width.
+    id: "night-glow", label: "Night Glow", category: "bold",
+    config: {
+      bgColor: "#0e0e20", bgColor2: "#0a0a18", gradientAngle: 180, fontColor: "#ffffff",
+      fontId: "sans", fontSize: 112, subSize: 46, textAlign: "center",
+      textPosition: "top", deviceStyle: "frame", deviceFit: "fill", deviceScale: 86, tilt: 0,
+      glowAt: "text", glowStrength: 70,
+    },
+    variants: [
+      { glowColor: "#6c63ff" }, { glowColor: "#e07a5f" }, { glowColor: "#ff6b35" },
+      { glowColor: "#7d9e7e" }, { glowColor: "#6b8e9f" }, { glowColor: "#d4a373" },
+    ],
+  },
+  {
+    // Alternating violet and lilac slides, with a night slide to show dark mode.
+    id: "violet-lilac", label: "Violet & Lilac", category: "professional",
+    config: {
+      gradientAngle: 180, fontId: "sans", fontSize: 150, subSize: 56, textAlign: "center",
+      textPosition: "top", deviceStyle: "frame", deviceFit: "contain", deviceScale: 100, tilt: 0,
+      glowColor: "#8b5cf6", glowAt: "device", glowStrength: 55,
+    },
+    variants: [
+      { bgColor: "#7048e8", bgColor2: "#a78bfa", fontColor: "#ffffff" },
+      { bgColor: "#f6f2ff", bgColor2: "#e4dbff", fontColor: "#161228" },
+      { bgColor: "#7048e8", bgColor2: "#a78bfa", fontColor: "#ffffff" },
+      { bgColor: "#f6f2ff", bgColor2: "#e4dbff", fontColor: "#161228" },
+      { bgColor: "#0e0f14", bgColor2: "#281c54", fontColor: "#ffffff" },
+    ],
+  },
+  {
+    // Light lavender-to-peach wash, dark type, a tinted glow behind the device.
+    id: "soft-daylight", label: "Soft Daylight", category: "clean",
+    config: {
+      bgColor: "#e6e6ff", bgColor2: "#ffebdb", gradientAngle: 135, fontColor: "#17171c",
+      fontId: "sans", fontSize: 100, subSize: 42, textAlign: "center",
+      textPosition: "top", deviceStyle: "frame", deviceFit: "contain", deviceScale: 100, tilt: 0,
+      glowAt: "device", glowStrength: 45,
+    },
+    variants: [
+      { glowColor: "#f26b1c" }, { glowColor: "#6e4af5" }, { glowColor: "#1fa363" },
+      { glowColor: "#ffc23d" }, { glowColor: "#2e8cf0" },
+    ],
+  },
   {
     id: "midnight-launch", label: "Midnight Launch", category: "bold",
     config: {

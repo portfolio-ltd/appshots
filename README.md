@@ -9,16 +9,19 @@ Drop in raw simulator screenshots, pick a look, and download a ZIP of polished m
 [![CI](https://github.com/portfolio-ltd/appshots/actions/workflows/ci.yml/badge.svg)](https://github.com/portfolio-ltd/appshots/actions/workflows/ci.yml)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
-![Example output: iPhone, iPad and Chromebook screenshots made with AppShots](docs/showcase.png)
+![Screenshots made with AppShots from real captures of Notchday and LocalSpend: Night Glow, Soft Daylight and Violet & Lilac templates, plus a Google Play feature graphic](docs/showcase.png)
+
+No screenshots of your own yet? Click **Try with sample screenshots** on the home page to open a finished sample project.
 
 ## Features
 
-- **Exact store sizes.** Every export matches an accepted resolution: iPhone 6.9″/6.5″/6.3″/6.1″, iPhone Duo (inner and outer displays), iPad 13″/11″/9.7″, Apple Watch, and Play phone, 7″/10″ tablet, Chromebook, Wear OS, Android TV, Android Automotive and Android XR. Store count limits are checked before export, each device shows the current store rule (required, optional, scaled or deadline), and files over Google Play's size limits are re-encoded as JPEG automatically.
+- **Exact store sizes.** Every export matches an accepted resolution: iPhone 6.9″/6.5″/6.3″/6.1″, iPhone Duo (inner and outer displays), iPad 13″/11″/9.7″, Apple Watch, and Play phone, 7″/10″ tablet, Chromebook, Wear OS, Android TV, Android Automotive and Android XR, plus the **Play feature graphic** (1024×500), which reuses your first phone screenshot unless you add one. Store count limits are checked before export, each device shows the current store rule (required, optional, scaled or deadline), and files over Google Play's size limits are re-encoded as JPEG automatically.
 - **What you see is what you export.** The editor preview and the export use the same canvas renderer, so they cannot drift apart.
 - **Real device frames.** iPhone with Dynamic Island, an unfolded iPhone Duo, Android phones with a punch-hole camera, iPad, Android tablets, a Chromebook-style laptop and Apple Watch, all drawn in code. You can also use a floating card or a full-bleed layout.
-- **Typography that holds up.** Five bundled open-source fonts with auto-fit and balanced line wrapping, plus colour emoji.
-- **Templates and story mode.** One-click looks. Story mode applies a template to the whole set and numbers each screenshot.
-- **Captions for the whole set.** Built-in suggestions work offline. With your own Anthropic API key, Claude writes captions from your app description. The key goes straight from your browser to `api.anthropic.com` and nowhere else.
+- **Typography that holds up.** Five bundled open-source fonts with auto-fit and balanced line wrapping, colour emoji, and multi-line headlines (press Enter for "Tap once.↵Keep the chain.").
+- **Lighting and layout.** Gradients with a soft glow behind the caption or the device, and a "fill" mode where the device spans the canvas and runs off the edge.
+- **Templates that work as a set.** One-click looks applied to every screenshot at once. Some templates give each screenshot its own colour while sharing one base, and step numbers are optional.
+- **Captions for the whole set.** Built-in suggestions need no setup. With your own Anthropic API key, Claude looks at each screenshot, plus any README or notes you paste, and writes a caption for what that screen shows. Your key and downscaled copies of your screenshots go straight from your browser to `api.anthropic.com` and nowhere else.
 - **Drafts survive reloads.** Settings live in `localStorage` and screenshots in IndexedDB, on your device only.
 
 ![The design editor](docs/editor.png)
@@ -70,7 +73,9 @@ components/          DesignCanvas (live preview), controls, shadcn/ui primitives
 lib/render/          The renderer — pure layout + geometry, and canvas drawing
 lib/constants.ts     Device specs (output sizes, frames, store limits), templates
 lib/export.ts        Full-resolution render, size-limit handling, ZIP
-lib/autodesign.ts    Caption generation (local heuristic + Claude BYOK)
+lib/autodesign.ts    Caption generation (local heuristic + Claude BYOK, which sees the screens)
+lib/demo.ts          The sample project (real Notchday captures in public/examples/)
+lib/shots.ts         Borrowed screenshots (the feature graphic reuses a phone shot)
 lib/persist.ts       Draft storage (localStorage)
 lib/files.ts         Screenshot storage (IndexedDB)
 tests/               Vitest unit tests for layout, wrapping and specs

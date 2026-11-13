@@ -69,6 +69,7 @@ export function renderDesign(
   ctx.save();
   ctx.clearRect(0, 0, width, height);
   drawBackground(ctx, width, height, config);
+  if (layout.device) drawGlow(ctx, width, height, config, layout);
 
   if (layout.device) {
     drawDevice(ctx, layout.device, config, assets);
@@ -101,6 +102,49 @@ function drawBackground(ctx: Ctx, W: number, H: number, config: DesignConfig) {
   g.addColorStop(1, config.bgColor2);
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
+}
+
+/**
+ * A soft elliptical pool of light, behind the caption or the device. Gives a
+ * flat background depth, and lets a set share one base colour while each
+ * screenshot gets its own accent.
+ */
+function drawGlow(ctx: Ctx, W: number, H: number, config: DesignConfig, layout: DesignLayout) {
+  if (!config.glowColor || config.glowStrength <= 0) return;
+  const landscape = W > H * 1.2;
+  const short = Math.min(W, H);
+  let cx = W / 2;
+  let cy: number;
+  let rx: number;
+  if (config.glowAt === "device" && layout.device) {
+    cx = layout.device.cx;
+    // A device that runs off the canvas still lights the part that's visible.
+    cy = Math.min(Math.max(layout.device.cy, H * 0.3), H * 0.75);
+    rx = short * (landscape ? 0.75 : 0.85);
+  } else {
+    const box = layout.text?.box;
+    if (box) cx = box.x + box.w / 2;
+    if (landscape) {
+      cy = box ? box.y + box.h / 2 : H / 2;
+      rx = short * 0.85;
+    } else {
+      // Light from above the caption, the way a spotlight would fall.
+      cy = config.textPosition === "top" ? (box ? box.y : 0) : (box ? box.y + box.h : H);
+      rx = W * 0.8;
+    }
+  }
+  const ry = rx * 0.75;
+  const a = Math.min(1, config.glowStrength / 100) * 0.85;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(1, ry / rx);
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+  g.addColorStop(0, withAlpha(config.glowColor, a));
+  g.addColorStop(0.45, withAlpha(config.glowColor, a * 0.45));
+  g.addColorStop(1, withAlpha(config.glowColor, 0));
+  ctx.fillStyle = g;
+  ctx.fillRect(-rx, -rx, rx * 2, rx * 2);
+  ctx.restore();
 }
 
 // ─── Device ──────────────────────────────────────────────────────────────────

@@ -38,6 +38,8 @@ CI runs the same commands. For anything that changes rendering, also check the r
 
 Add it to `TEMPLATE_PRESETS` **and** to `TEMPLATE_IDS` in `lib/autodesign.ts`, which lists the templates Claude can choose from. A test fails if the two lists drift apart.
 
+`config` is the look every screenshot shares. To give each screenshot its own colour, add `variants`: screenshot *i* gets `variants[i % variants.length]` on top of `config` (see Night Glow, which keeps one dark base and changes only `glowColor`).
+
 ### Store requirements changed?
 
 Open an issue with a link to the official Apple or Google page. Spec fixes are the most valuable contributions.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { TEMPLATE_PRESETS, type AppInfo } from "../lib/constants";
-import { localAutoDesign, TEMPLATE_IDS } from "../lib/autodesign";
+import { localAutoDesign, normaliseHeadline, TEMPLATE_IDS } from "../lib/autodesign";
 
 const app: AppInfo = {
   name: "Taskly",
@@ -40,4 +40,10 @@ describe("localAutoDesign", () => {
 
 it("template ids match the presets", () => {
   expect([...TEMPLATE_IDS].sort()).toEqual(TEMPLATE_PRESETS.map((t) => t.id).sort());
+});
+
+it("normalises headline line breaks from the model", () => {
+  expect(normaliseHeadline("Tap once.\\nKeep the chain.")).toBe("Tap once.\nKeep the chain.");
+  expect(normaliseHeadline("Every rupee, \n\n sorted.")).toBe("Every rupee,\nsorted.");
+  expect(normaliseHeadline("One line")).toBe("One line");
 });

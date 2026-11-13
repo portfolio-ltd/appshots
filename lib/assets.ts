@@ -61,3 +61,14 @@ export async function loadOverlayImages(overlays: OverlayItem[]): Promise<Map<st
   );
   return out;
 }
+
+/** A screenshot downscaled to `maxSide` px and encoded as base64 JPEG (no data: prefix), for Claude. */
+export async function toJpegBase64(file: Blob, maxSide = 1200): Promise<string> {
+  const bitmap = await decodeFile(file);
+  const s = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * s);
+  canvas.height = Math.round(bitmap.height * s);
+  canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.82).split(",")[1];
+}

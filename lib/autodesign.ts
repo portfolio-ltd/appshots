@@ -13,6 +13,7 @@ import type { AppInfo } from "./constants";
 
 // Keep in sync with TEMPLATE_PRESETS ids in lib/constants.ts.
 export const TEMPLATE_IDS = [
+  "night-glow", "violet-lilac", "soft-daylight",
   "midnight-launch", "ocean-calm", "sunset-energy", "forest-fresh",
   "paper-minimal", "slate-editorial", "grape-bold", "blush-playful",
 ] as const;
@@ -77,6 +78,11 @@ const SUBHEADINGS = [
   "Download free today.",
 ];
 
+/** The prompt shows line breaks as "\\n"; accept them written out literally too, and collapse blank lines. */
+export function normaliseHeadline(s: string): string {
+  return s.replace(/\\n/g, "\n").replace(/[ \t]*\n[ \t]*/g, "\n").replace(/\n{2,}/g, "\n").trim();
+}
+
 function clip(s: string, max: number) {
   const t = s.trim();
   if (t.length <= max) return t;
@@ -117,28 +123,52 @@ const ResultSchema = z.object({
   ),
 });
 
-export async function aiAutoDesign(app: AppInfo, count: number, apiKey: string): Promise<AutoDesignResult> {
-  const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
+export interface AiOptions {
+  /** One JPEG (base64, no data: prefix) per screen position; null where none. */
+  screens?: (string | null)[];
+  /** Extra context the user pastes: README, feature list, release notes. */
+  notes?: string;
+}
 
-  const prompt = [
+export async function aiAutoDesign(
+  app: AppInfo,
+  count: number,
+  apiKey: string,
+  { screens = [], notes = "" }: AiOptions = {},
+): Promise<AutoDesignResult> {
+  const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
+  const seeing = screens.some(Boolean);
+
+  const brief = [
     `Write App Store / Google Play screenshot captions for an app called "${app.name}".`,
     app.subtitle && `Subtitle: ${app.subtitle}`,
     app.descriptionShort && `Short description: ${app.descriptionShort}`,
     app.descriptionFull && `Full description: ${app.descriptionFull.slice(0, 1500)}`,
     app.categoryPrimary && `Category: ${app.categoryPrimary}`,
+    notes.trim() && `More context from the developer (README, feature list or notes):\n${notes.trim().slice(0, 6000)}`,
     "",
-    `Write exactly ${count} captions, one per screenshot, in the order a new user would discover the app:`,
-    "the first sells the core benefit, later ones each highlight a different feature.",
-    `Each headline is at most ${HEADLINE_MAX} characters, benefit-led, and in sentence case.`,
-    `Each subheading is at most ${SUBHEADING_MAX} characters and adds a concrete detail.`,
-    "Use only features the descriptions support, with no claims about rankings, awards, or prices.",
+    seeing
+      ? `The ${count} screenshots are attached in order. Write one caption per screenshot about what that screen shows.`
+      : `Write exactly ${count} captions, one per screenshot.`,
+    "Order them the way a new user discovers the app: the first sells the core benefit, the rest each highlight a different feature.",
+    `Headline: at most ${HEADLINE_MAX} characters, benefit-led, sentence case. Split it into two short lines with a line break (\\n) where it reads naturally, e.g. "Tap once.\\nKeep the chain." or "Every rupee,\\nsorted."`,
+    `Subheading: one sentence of at most ${SUBHEADING_MAX} characters adding a concrete detail from the screen or the descriptions.`,
+    "Only claim what the screenshots or descriptions support: no rankings, awards, prices or invented numbers.",
     `Also pick the template that best fits the app's tone from: ${TEMPLATE_IDS.join(", ")}.`,
   ].filter(Boolean).join("\n");
+
+  const content: Anthropic.ContentBlockParam[] = [];
+  screens.slice(0, count).forEach((data, i) => {
+    if (!data) return;
+    content.push({ type: "text", text: `Screenshot ${i + 1}:` });
+    content.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data } });
+  });
+  content.push({ type: "text", text: brief });
 
   const response = await client.messages.parse({
     model: AUTODESIGN_MODEL,
     max_tokens: 2000,
-    messages: [{ role: "user", content: prompt }],
+    messages: [{ role: "user", content }],
     output_config: { effort: "low", format: zodOutputFormat(ResultSchema) },
   });
 
@@ -149,7 +179,7 @@ export async function aiAutoDesign(app: AppInfo, count: number, apiKey: string):
 
   const shots = Array.from({ length: count }, (_, i) => {
     const s = parsed.screenshots[i % parsed.screenshots.length];
-    return { headline: clip(s.headline, HEADLINE_MAX), subheading: clip(s.subheading, SUBHEADING_MAX) };
+    return { headline: clip(normaliseHeadline(s.headline), HEADLINE_MAX), subheading: clip(s.subheading, SUBHEADING_MAX) };
   });
   return { templateId: parsed.template_id, shots, source: "ai" };
 }

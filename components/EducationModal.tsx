@@ -102,6 +102,35 @@ export function EducationModal({ open, onClose, stores }: EducationModalProps) {
 
         <Separator />
 
+        <section className="space-y-2">
+          <Badge variant="secondary">Tips for store-quality captures</Badge>
+          <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+            <li>Fill the app with realistic demo data. Empty states don&apos;t sell.</li>
+            <li>Capture on the largest simulator (iPhone 6.9&quot;, iPad 13&quot;). AppShots scales down cleanly; scaling up blurs.</li>
+            <li>Use the same screen order on every device, so captions line up across the set.</li>
+          </ul>
+          {showIos && (
+            <>
+              <p className="text-xs text-muted-foreground">A clean 9:41 status bar in the iOS Simulator:</p>
+              <pre className="text-[11px] bg-muted rounded-md p-2 overflow-x-auto"><code>xcrun simctl status_bar booted override --time 9:41 --batteryState charged --batteryLevel 100 --wifiBars 3 --cellularBars 4</code></pre>
+            </>
+          )}
+          {showAndroid && (
+            <>
+              <p className="text-xs text-muted-foreground">The same on an Android emulator (System UI demo mode):</p>
+              <pre className="text-[11px] bg-muted rounded-md p-2 overflow-x-auto"><code>{[
+                "adb shell settings put global sysui_demo_allowed 1",
+                "adb shell am broadcast -a com.android.systemui.demo -e command enter",
+                "adb shell am broadcast -a com.android.systemui.demo -e command clock -e hhmm 0941",
+                "adb shell am broadcast -a com.android.systemui.demo -e command battery -e level 100 -e plugged false",
+                "adb shell am broadcast -a com.android.systemui.demo -e command notifications -e visible false",
+              ].join("\n")}</code></pre>
+            </>
+          )}
+        </section>
+
+        <Separator />
+
         <p className="text-sm text-muted-foreground">
           <strong className="text-foreground">Uploading manually?</strong>{" "}
           No problem — in the next step you can drop any PNG or JPEG files

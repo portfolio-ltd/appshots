@@ -15,6 +15,7 @@ import { clearFiles } from "./files";
 const K = {
   appInfo: "appshots:v2:appInfo",
   designs: "appshots:v2:designs",
+  notes: "appshots:v2:captionNotes",
 } as const;
 
 function read<T>(key: string): T | null {
@@ -71,6 +72,11 @@ export function resolveDesign(designs: DesignMap, deviceId: string, idx: number)
     ...(designs[designKey(deviceId, idx)] ?? {}),
   };
 }
+
+// ── Caption notes (README, feature list…) sent to Claude with the screenshots ─
+
+export function saveCaptionNotes(notes: string) { write(K.notes, notes); }
+export function loadCaptionNotes(): string { return read<string>(K.notes) ?? ""; }
 
 // ── Draft lifecycle ─────────────────────────────────────────────────────────
 

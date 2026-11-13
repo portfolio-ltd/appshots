@@ -222,7 +222,15 @@ export function layoutDesign(input: LayoutInput): DesignLayout {
   const boxH = sideways ? unitGeo.box.w : unitGeo.box.h;
   const rotated = rotatedBounds(boxW, boxH, config.tilt);
 
-  const fit = Math.min(region.w / rotated.w, Math.max(region.h, 1) / rotated.h);
+  const fill = config.deviceFit === "fill";
+  let fit = Math.min(region.w / rotated.w, Math.max(region.h, 1) / rotated.h);
+  if (fill) {
+    // Portrait: size by the canvas width. Landscape banners: up to 1.6× the
+    // height, so a phone stays a phone rather than shrinking to fit.
+    fit = landscapeCanvas
+      ? Math.min(region.w / rotated.w, (Math.max(region.h, 1) * 1.6) / rotated.h)
+      : W / rotated.w;
+  }
   const scale = fit * (config.deviceScale / 100);
   const geometry = frameGeometry(frame, unitW * scale, unitH * scale);
   const drawnW = rotated.w * scale;
@@ -230,7 +238,13 @@ export function layoutDesign(input: LayoutInput): DesignLayout {
 
   let cx = region.x + region.w / 2;
   let cy = region.y + region.h / 2;
-  if (config.deviceScale > 100) {
+  if (fill) {
+    // Pinned next to the caption, running off the far edge.
+    if (!landscapeCanvas) cx = W / 2;
+    cy = !landscapeCanvas && anchor === "bottom"
+      ? region.y + region.h - drawnH / 2
+      : region.y + drawnH / 2;
+  } else if (config.deviceScale > 100) {
     if (anchor === "top") cy = region.y + drawnH / 2;
     if (anchor === "bottom") cy = region.y + region.h - drawnH / 2;
     if (anchor === "left") cx = region.x + drawnW / 2;
