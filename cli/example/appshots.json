@@ -1,0 +1,14 @@
+{
+  "out": "out",
+  "template": "night-glow",
+  "devices": {
+    "ios-iphone-6.9": "../../public/examples/notchday-{key}.jpg",
+    "ios-iphone-6.3": "../../public/examples/notchday-{key}.jpg"
+  },
+  "shots": [
+    { "key": "today", "headline": "Tap once.\nKeep the chain.", "subheading": "Every habit you're building, on one screen." },
+    { "key": "streaks", "headline": "Months of progress,\nat a glance.", "subheading": "The days you showed up, and the ones you didn't." },
+    { "key": "stats", "headline": "Know what's\nworking.", "subheading": "Momentum, consistency, best days and more." },
+    { "key": "light", "headline": "No account.\nNo subscription.", "subheading": "Your data stays on your device.", "style": { "glowColor": "#d4a373" } }
+  ]
+}

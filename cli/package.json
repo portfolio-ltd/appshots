@@ -1,0 +1,49 @@
+{
+  "name": "appshots-cli",
+  "version": "1.0.0",
+  "description": "Generate store-ready App Store and Google Play screenshots from the command line.",
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/portfolio-ltd/appshots.git",
+    "directory": "cli"
+  },
+  "homepage": "https://appshots.portfolio.ltd",
+  "keywords": [
+    "app-store",
+    "google-play",
+    "screenshots",
+    "aso",
+    "cli"
+  ],
+  "type": "module",
+  "bin": {
+    "appshots": "dist/cli.mjs"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "esbuild src/cli.ts --bundle --platform=node --format=esm --target=node20 --outfile=dist/cli.mjs --packages=external --banner:js='#!/usr/bin/env node'",
+    "prepublishOnly": "npm run build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "example": "node dist/cli.mjs render example/appshots.json"
+  },
+  "dependencies": {
+    "@fontsource/inter": "^5.2.5",
+    "@fontsource/jetbrains-mono": "^5.2.5",
+    "@fontsource/nunito": "^5.2.5",
+    "@fontsource/playfair-display": "^5.2.5",
+    "@fontsource/plus-jakarta-sans": "^5.2.5",
+    "@napi-rs/canvas": "^1.1.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "typescript": "^5",
+    "@types/node": "^22"
+  }
+}

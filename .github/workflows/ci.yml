@@ -22,3 +22,22 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+  cli:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: cli/package-lock.json
+      - run: npm ci
+        working-directory: cli
+      - run: npm run typecheck
+        working-directory: cli
+      - run: npm run build
+        working-directory: cli
+      # Smoke test: render the bundled example and check a real image came out.
+      - run: npm run example && test -s example/out/app-store/iphone-6.9/01-today.png
+        working-directory: cli

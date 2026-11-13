@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "cli:build": "npm --prefix cli ci && npm --prefix cli run build",
+    "cli": "node cli/dist/cli.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.2.0",
