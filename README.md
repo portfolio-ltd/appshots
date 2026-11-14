@@ -7,6 +7,7 @@ Drop in raw simulator screenshots, pick a look, and download a ZIP of polished m
 **[Try it at appshots.portfolio.ltd →](https://appshots.portfolio.ltd)**
 
 [![CI](https://github.com/portfolio-ltd/appshots/actions/workflows/ci.yml/badge.svg)](https://github.com/portfolio-ltd/appshots/actions/workflows/ci.yml)
+[![npm: appshots-cli](https://img.shields.io/npm/v/appshots-cli?label=appshots-cli)](https://www.npmjs.com/package/appshots-cli)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
 ![Screenshots made with AppShots from real captures of Notchday and LocalSpend: Night Glow, Soft Daylight and Violet & Lilac templates, plus a Google Play feature graphic](docs/showcase.png)
@@ -63,7 +64,7 @@ npx appshots-cli init      # sample config
 npx appshots-cli render    # writes appshots-out/<store>/<device>/01-home.png
 ```
 
-Until the package is on npm, run it from a clone: `npm run cli:build`, then `npm run cli -- render cli/example/appshots.json`. Full options are in [cli/README.md](cli/README.md).
+Requires Node.js 20+ and nothing else. Full options are in [cli/README.md](cli/README.md), and the package is [appshots-cli on npm](https://www.npmjs.com/package/appshots-cli).
 
 ## How it works
 
